@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Child Health Monitoring System</title>
+    <style>
+        body {
+            background: linear-gradient(45deg, #ff3cac, #784ba0, #2b86d9);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            font-family: Arial, sans-serif;
+            color: white;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            width: 450px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        h1, h2, h3 {
+            color: #fff;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+            background-color: #fff;
+            color: #333;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #ff3cac;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #784ba0;
+        }
+
+        .error {
+            color: red;
+            font-size: 14px;
+        }
+
+        .links {
+            margin-top: 10px;
+        }
+
+        .links a {
+            color: #ff3cac;
+            text-decoration: none;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .select-type {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .select-type input {
+            margin: 0 10px;
+        }
+
+        .child-profile input {
+            width: 48%;
+            margin: 5px 2%;
+        }
+
+        .child-photo {
+            margin-top: 10px;
+            padding: 10px;
+        }
+
+        .vaccines-list, .growth-data {
+            margin-top: 20px;
+        }
+
+        .vaccines-list input, .growth-data input {
+            margin: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Child Health System</h1>
+        
+        <div id="login-section">
+            <h2>Login</h2>
+            <form id="login-form">
+                <input type="email" id="email" placeholder="Enter Email" required>
+                <input type="password" id="password" placeholder="Enter Password" required>
+                <button type="submit">Login</button>
+            </form>
+            <div class="links">
+                <a href="javascript:void(0);" id="register-btn">Don't have an account? Register</a>
+            </div>
+            <p class="error" id="login-error"></p>
+        </div>
+
+        <div id="register-section" style="display:none;">
+            <h2>Register</h2>
+            <form id="register-form">
+                <input type="email" id="register-email" placeholder="Enter Email" required>
+                <input type="password" id="register-password" placeholder="Enter Password" required>
+                <div class="select-type">
+                    <label>
+                        <input type="radio" name="user-type" id="parent" value="Parent" required> Parent
+                    </label>
+                    <label>
+                        <input type="radio" name="user-type" id="healthcare" value="Healthcare" required> Healthcare Worker
+                    </label>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            <div class="links">
+                <a href="javascript:void(0);" id="login-btn">Already have an account? Login</a>
+            </div>
+            <p class="error" id="register-error"></p>
+        </div>
+
+        <div id="dashboard" style="display:none;">
+            <h2>Welcome to the Dashboard</h2>
+            <button id="logout-btn">Logout</button>
+            <div class="child-profile">
+                <h3>Create Child Profile</h3>
+                <input type="text" id="child-name" placeholder="Child Name">
+                <input type="number" id="child-age" placeholder="Child Age">
+                <input type="file" id="child-photo" class="child-photo" accept="image/*">
+                <input type="text" id="child-medical-history" placeholder="Child's Medical History">
+                <button id="create-profile-btn">Create Profile</button>
+            </div>
+
+            <div class="vaccines-list">
+                <h3>Vaccines</h3>
+                <div id="vaccines-container">
+                    <input type="text" class="vaccine-name" placeholder="Vaccine Name">
+                    <input type="text" class="vaccine-time" placeholder="Time Period (e.g., 6 months)">
+                    <button id="add-vaccine-btn">Add Vaccine</button>
+                </div>
+                <div id="vaccines-list"></div>
+            </div>
+
+            <div class="growth-data">
+                <h3>Growth Data</h3>
+                <input type="number" id="child-height" placeholder="Height (cm)">
+                <input type="number" id="child-weight" placeholder="Weight (kg)">
+                <button id="add-growth-data-btn">Add Growth Data</button>
+                <div id="growth-data-list"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzo8LvRBfFFBeruoRTOJpXMzE0vNRpDVw",
+            authDomain: "chilldcare-8da7f.firebaseapp.com",
+            projectId: "chilldcare-8da7f",
+            storageBucket: "chilldcare-8da7f.firebasestorage.app",
+            messagingSenderId: "829019516603",
+            appId: "1:829019516603:web:5dbd129648ff985ebf839e",
+            measurementId: "G-MFHGR6HV89"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        document.getElementById("login-form").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then(() => {
+                    document.getElementById("login-section").style.display = "none";
+                    document.getElementById("dashboard").style.display = "block";
+                    document.getElementById("login-error").textContent = "";
+                })
+                .catch((error) => {
+                    document.getElementById("login-error").textContent = "Error: " + error.message;
+                });
+        });
+
+        document.getElementById("register-form").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const email = document.getElementById("register-email").value;
+            const password = document.getElementById("register-password").value;
+            const userType = document.querySelector('input[name="user-type"]:checked').value;
+
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    setDoc(doc(db, "users", user.uid), {
+                        email: user.email,
+                        userType: userType
+                    }).then(() => {
+                        document.getElementById("register-section").style.display = "none";
+                        document.getElementById("dashboard").style.display = "block";
+                        document.getElementById("register-error").textContent = "";
+                    });
+                })
+                .catch((error) => {
+                    document.getElementById("register-error").textContent = "Error: " + error.message;
+                });
+        });
+
+        document.getElementById("logout-btn").addEventListener("click", () => {
+            signOut(auth).then(() => {
+                document.getElementById("dashboard").style.display = "none";
+                document.getElementById("login-section").style.display = "block";
+            });
+        });
+
+        // Create Child Profile
+        document.getElementById("create-profile-btn").addEventListener("click", async () => {
+            const name = document.getElementById("child-name").value;
+            const age = document.getElementById("child-age").value;
+            const medicalHistory = document.getElementById("child-medical-history").value;
+            const photo = document.getElementById("child-photo").files[0];
+
+            if (photo) {
+                const storageRef = ref(storage, `childPhotos/${photo.name}`);
+                await uploadBytes(storageRef, photo);
+                const photoURL = await getDownloadURL(storageRef);
+
+                const user = auth.currentUser;
+                if (user) {
+                    setDoc(doc(db, "children", user.uid), {
+                        name: name,
+                        age: age,
+                        medicalHistory: medicalHistory,
+                        photoURL: photoURL
+                    }).then(() => {
+                        alert("Child Profile Created!");
+                    });
+                }
+            }
+        });
+
+        // Add Vaccine
+        document.getElementById("add-vaccine-btn").addEventListener("click", () => {
+            const vaccineName = document.querySelector(".vaccine-name").value;
+            const vaccineTime = document.querySelector(".vaccine-time").value;
+
+            const user = auth.currentUser;
+            if (user) {
+                setDoc(doc(db, "children", user.uid, "vaccines", vaccineName), {
+                    name: vaccineName,
+                    timePeriod: vaccineTime
+                }).then(() => {
+                    alert("Vaccine Added!");
+                });
+            }
+        });
+
+        // Add Growth Data
+        document.getElementById("add-growth-data-btn").addEventListener("click", () => {
+            const height = document.getElementById("child-height").value;
+            const weight = document.getElementById("child-weight").value;
+
+            const user = auth.currentUser;
+            if (user) {
+                setDoc(doc(db, "children", user.uid, "growthData", `${height}-${weight}`), {
+                    height: height,
+                    weight: weight
+                }).then(() => {
+                    alert("Growth Data Added!");
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>
